@@ -1,0 +1,11 @@
+{
+    "mcpServers": {
+        "laravel-boost": {
+            "command": "/usr/bin/php8.2",
+            "args": [
+                "/home/user/projects/cyber_mmo/artisan",
+                "boost:mcp"
+            ]
+        }
+    }
+}
