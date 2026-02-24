@@ -6,6 +6,27 @@ mkdir -p /var/log/php
 mkdir -p /var/log/supervisor
 mkdir -p /var/run/php
 
+# Install Composer dependencies if vendor is empty or missing
+if [ ! -f "/var/www/html/vendor/autoload.php" ]; then
+    echo "Installing Composer dependencies..."
+    cd /var/www/html
+    composer install --no-dev --optimize-autoloader --no-interaction
+fi
+
+# Install Node dependencies if node_modules is empty or missing
+if [ ! -d "/var/www/html/node_modules" ] || [ -z "$(ls -A /var/www/html/node_modules 2>/dev/null)" ]; then
+    echo "Installing Node dependencies..."
+    cd /var/www/html
+    npm install --legacy-peer-deps
+fi
+
+# Build assets if public/build is missing
+if [ ! -d "/var/www/html/public/build" ] || [ -z "$(ls -A /var/www/html/public/build 2>/dev/null)" ]; then
+    echo "Building assets..."
+    cd /var/www/html
+    npm run build
+fi
+
 # Set permissions
 chown -R www-data:www-data /var/www/html/storage
 chown -R www-data:www-data /var/www/html/bootstrap/cache

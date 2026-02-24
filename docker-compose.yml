@@ -9,6 +9,8 @@ services:
     working_dir: /var/www/html
     volumes:
       - .:/var/www/html
+      - vendor_data:/var/www/html/vendor
+      - node_modules_data:/var/www/html/node_modules
       - ./storage:/var/www/html/storage
     ports:
       - "8080:80"
@@ -100,4 +102,8 @@ volumes:
   mysql_data:
     driver: local
   redis_data:
+    driver: local
+  vendor_data:
+    driver: local
+  node_modules_data:
     driver: local
