@@ -6,6 +6,13 @@
 # Docker Compose orchestrates multiple containers to work together.
 # It defines services (containers), networks, and volumes.
 #
+# ENVIRONMENT CONFIGURATION:
+# This file uses src/.env for all environment variables.
+# Copy src/.env.example to src/.env and configure as needed.
+# NOTE: All variables have defaults, so docker-compose works without --env-file.
+# The actual values are loaded from src/.env via env_file in the app service.
+#
+#
 # HOW TO USE:
 # - Start:    docker-compose up -d
 # - Stop:     docker-compose down
@@ -103,33 +110,21 @@ services:
       - vendor_data:/var/www/html/vendor       # Composer packages
       - node_modules_data:/var/www/html/node_modules  # NPM packages
     
+    # Use src/.env for Laravel configuration
+    env_file:
+      - src/.env
+    
     # Environment variables
-    # These override values in .env file inside the container
+    # Only override what differs from src/.env defaults
+    # All other variables come from env_file (src/.env)
     environment:
-      # Application settings
-      - APP_ENV=local
-      - APP_DEBUG=true
-      - APP_KEY=${APP_KEY}
+      # Docker runs on port 8080, not 80
       - APP_URL=http://localhost:8080
-      
-      # Database settings (using container names as hostnames)
-      - DB_CONNECTION=mysql
-      - DB_HOST=mysql              # Container name, not localhost!
-      - DB_PORT=3306
-      - DB_DATABASE=${DB_DATABASE:-laravel}
-      - DB_USERNAME=${DB_USERNAME:-laravel}
-      - DB_PASSWORD=${DB_PASSWORD:-secret}
-      
-      # Redis settings
-      - REDIS_HOST=redis           # Container name
-      - REDIS_PORT=6379
-      - CACHE_DRIVER=redis
-      - QUEUE_CONNECTION=redis
-      - SESSION_DRIVER=redis
-      
-      # PHP settings for development
+      # PHP development settings (not in src/.env)
       - PHP_OPCACHE_VALIDATE_TIMESTAMPS=1
       - PHP_OPCACHE_REVALIDATE_FREQ=0
+      # Database connection settings (not in src/.env)
+      - DB_ROOT_PASSWORD=rootsecret
     
     # Dependencies: Wait for MySQL and Redis to be ready
     depends_on:

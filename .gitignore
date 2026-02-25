@@ -5,13 +5,10 @@
 # -----------------------------------------------------------------------------
 # ENVIRONMENT FILES
 # -----------------------------------------------------------------------------
-# Main environment file (contains secrets)
-.env
+# Environment configuration is in src/.env (ignored by src/.gitignore)
+# Use: docker-compose --env-file src/.env up -d
 .env.local
 .env.*.local
-
-# Keep example files
-!.env.example
 
 # -----------------------------------------------------------------------------
 # DOCKER
