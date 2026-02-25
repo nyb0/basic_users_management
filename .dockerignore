@@ -1,49 +1,188 @@
-# Git
+# =============================================================================
+# DOCKER IGNORE FILE
+# =============================================================================
+#
+# WHAT THIS FILE DOES:
+# This file tells Docker which files to EXCLUDE from the build context.
+# It works exactly like .gitignore but for Docker builds.
+#
+# WHY USE .dockerignore:
+# 1. Faster builds - Less files to send to Docker daemon
+# 2. Smaller images - Don't include unnecessary files
+# 3. Security - Don't include sensitive files (credentials, keys)
+# 4. Cache efficiency - Changes to excluded files don't invalidate cache
+#
+# HOW IT WORKS:
+# When you run "docker build", Docker sends all files in the build context
+# to the Docker daemon. This file filters what gets sent.
+#
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# VERSION CONTROL
+# -----------------------------------------------------------------------------
+# Git metadata is never needed in the container
 .git
 .gitignore
+.gitattributes
+.github
 
-# Docker
+# -----------------------------------------------------------------------------
+# DOCKER FILES
+# -----------------------------------------------------------------------------
+# Don't include Docker files in the image (prevents recursive builds)
 docker-compose.yml
 docker-compose*.yml
 .dockerignore
 Dockerfile*
+.docker/
 
-# Node
+# -----------------------------------------------------------------------------
+# NODE.JS
+# -----------------------------------------------------------------------------
+# node_modules should be installed inside the container, not copied from host
+# This ensures the correct platform (Linux) binaries are used
 node_modules
 npm-debug.log
 yarn-error.log
+yarn.lock
+package-lock.json
 
-# Build artifacts
+# -----------------------------------------------------------------------------
+# BUILD ARTIFACTS
+# -----------------------------------------------------------------------------
+# These are generated during build, not needed in the image
+# For production, you'd build these during the image build
 public/build
 public/hot
+public/storage
 
-# IDE
+# -----------------------------------------------------------------------------
+# IDE AND EDITOR FILES
+# -----------------------------------------------------------------------------
+# IDE-specific files should never be in the container
 .idea
 .vscode
 *.swp
 *.swo
+*~
+.project
+.classpath
+.settings/
 
-# OS
+# -----------------------------------------------------------------------------
+# OPERATING SYSTEM FILES
+# -----------------------------------------------------------------------------
+# OS-specific files are never needed
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 Thumbs.db
+Desktop.ini
 
-# Laravel
+# -----------------------------------------------------------------------------
+# LARAVEL SPECIFIC
+# -----------------------------------------------------------------------------
+# Environment files contain secrets - use environment variables instead
 .env
 .env.*
 !.env.example
 !.env.docker
+
+# Logs are generated at runtime, not needed in image
 storage/logs/*
 storage/framework/cache/*
 storage/framework/sessions/*
 storage/framework/views/*
 
-# Tests
+# Debug files
+*.log
+*.cache
+
+# -----------------------------------------------------------------------------
+# TESTING
+# -----------------------------------------------------------------------------
+# Test files are not needed in production images
 tests
 phpunit.xml
 .phpunit.result.cache
+.phpunit.cache
+coverage
+.coverage
 
-# Development files
+# -----------------------------------------------------------------------------
+# DOCUMENTATION
+# -----------------------------------------------------------------------------
+# Documentation files are not needed in the container
 *.md
+!README.md
+LICENSE
+CHANGELOG*
+CONTRIBUTING*
+docs/
+
+# -----------------------------------------------------------------------------
+# DEVELOPMENT CONFIGURATION
+# -----------------------------------------------------------------------------
+# Development-specific configuration files
 .editorconfig
 jsconfig.json
 boost.json
+.eslint*
+.prettierrc*
+.styleci.yml
+.php-cs-fixer.php
+
+# -----------------------------------------------------------------------------
+# TEMPORARY FILES
+# -----------------------------------------------------------------------------
+# Temporary files should never be in the image
+tmp/
+temp/
+*.tmp
+*.temp
+*.bak
+*.backup
+
+# -----------------------------------------------------------------------------
+# SECRETS AND CREDENTIALS
+# -----------------------------------------------------------------------------
+# NEVER include secrets in the image
+*.pem
+*.key
+*.crt
+secrets/
+.secrets/
+credentials.json
+service-account.json
+
+# =============================================================================
+# WHAT GETS INCLUDED (for reference):
+# =============================================================================
+#
+# After all exclusions, these directories/files ARE included:
+#
+# src/                    - Laravel application code
+#   ├── app/              - Application logic
+#   ├── bootstrap/        - Framework bootstrap files
+#   ├── config/           - Configuration files
+#   ├── database/         - Migrations, seeders, factories
+#   ├── public/           - Public web root (index.php)
+#   ├── resources/        - Views, assets, language files
+#   ├── routes/           - Route definitions
+#   ├── storage/          - (structure only, contents excluded)
+#   ├── tests/            - (excluded above, but structure kept)
+#   ├── artisan           - CLI tool
+#   ├── composer.json     - PHP dependencies
+#   ├── composer.lock     - Locked dependencies
+#   ├── package.json      - Node dependencies
+#   └── vite.config.js    - Build configuration
+#
+# docker/                 - Docker configuration files
+#   ├── nginx/            - Nginx config
+#   └── php/              - PHP config
+#
+# =============================================================================

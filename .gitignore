@@ -1,28 +1,81 @@
-*.log
-.DS_Store
+# =============================================================================
+# GIT IGNORE FILE - Docker Project Structure
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# ENVIRONMENT FILES
+# -----------------------------------------------------------------------------
+# Main environment file (contains secrets)
 .env
-.env.backup
-.env.production
-.phpactor.json
-.phpunit.result.cache
-/.fleet
-/.idea
-/.nova
-/.phpunit.cache
-/.vscode
-/.zed
-/auth.json
+.env.local
+.env.*.local
+
+# Keep example files
+!.env.example
+
+# -----------------------------------------------------------------------------
+# DOCKER
+# -----------------------------------------------------------------------------
+# Docker override files (local customizations)
+docker-compose.override.yml
+
+# Docker environment files
+.env.docker.local
+
+# -----------------------------------------------------------------------------
+# IDE AND EDITOR FILES
+# -----------------------------------------------------------------------------
+.idea
+.vscode
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+.fleet/
+.nova/
+.zed/
+
+# -----------------------------------------------------------------------------
+# OPERATING SYSTEM FILES
+# -----------------------------------------------------------------------------
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# -----------------------------------------------------------------------------
+# NODE.JS (root level)
+# -----------------------------------------------------------------------------
+# Only ignore if node_modules exists at root (for frontend tooling)
 /node_modules
-/public/build
-/public/hot
-/public/storage
-/storage/*.key
-/storage/pail
-/vendor
+
+# -----------------------------------------------------------------------------
+# LOGS AND TEMPORARY FILES
+# -----------------------------------------------------------------------------
+*.log
+*.cache
+*.tmp
+*.temp
+*.bak
+*.backup
+
+# -----------------------------------------------------------------------------
+# PHP/Laravel specific (root level)
+# -----------------------------------------------------------------------------
+.phpunit.result.cache
+.phpunit.cache
+.phpactor.json
+auth.json
+
+# -----------------------------------------------------------------------------
+# MISC
+# -----------------------------------------------------------------------------
+# Laravel Homestead (if used)
 Homestead.json
 Homestead.yaml
-Thumbs.db
-
-# Docker
-.env.docker.local
-docker-compose.override.yml

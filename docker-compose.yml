@@ -1,109 +1,325 @@
+# =============================================================================
+# DOCKER COMPOSE - Development Mode
+# =============================================================================
+#
+# WHAT THIS FILE DOES:
+# Docker Compose orchestrates multiple containers to work together.
+# It defines services (containers), networks, and volumes.
+#
+# HOW TO USE:
+# - Start:    docker-compose up -d
+# - Stop:     docker-compose down
+# - Logs:     docker-compose logs -f
+# - Rebuild:  docker-compose up -d --build
+# - Status:   docker-compose ps
+#
+# DEVELOPMENT MODE FEATURES:
+# - Volume mounting for live code updates
+# - phpMyAdmin for database management
+# - Exposed ports for debugging
+# - Development environment variables
+#
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# SERVICES
+# -----------------------------------------------------------------------------
+# Each service is a container. They communicate via the defined network.
+# -----------------------------------------------------------------------------
 services:
-  # Laravel Application
-  app:
+
+  # ===========================================================================
+  # NGINX - Web Server
+  # ===========================================================================
+  # Nginx serves static files and proxies PHP requests to PHP-FPM.
+  # This is the entry point for all HTTP traffic.
+  # ===========================================================================
+  nginx:
+    # Build configuration
     build:
-      context: .
-      dockerfile: docker/php/Dockerfile
-    container_name: laravel_app
+      context: .                    # Build context = project root
+      dockerfile: docker/nginx/Dockerfile
+    
+    # Container name (for easy reference in docker ps)
+    container_name: laravel_nginx
+    
+    # Restart policy: unless-stopped = restart unless manually stopped
     restart: unless-stopped
-    working_dir: /var/www/html
-    volumes:
-      - .:/var/www/html
-      - vendor_data:/var/www/html/vendor
-      - node_modules_data:/var/www/html/node_modules
-      - ./storage:/var/www/html/storage
+    
+    # Port mapping: host_port:container_port
+    # Access the app at http://localhost:8080
     ports:
       - "8080:80"
+    
+    # Volume mounts for development
+    # Format: host_path:container_path
+    # This allows Nginx to serve static files (CSS, JS, images)
+    volumes:
+      - ./src/public:/var/www/html/public:ro  # :ro = read-only (security)
+      - ./src/storage:/var/www/html/storage:ro # Storage for public files
+    
+    # Dependencies: Wait for PHP-FPM to be ready
+    depends_on:
+      app:
+        condition: service_healthy
+    
+    # Connect to the network
+    networks:
+      - laravel-network
+    
+    # Healthcheck for this container
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+  # ===========================================================================
+  # APP - PHP-FPM Application
+  # ===========================================================================
+  # PHP-FPM processes PHP code. It connects to MySQL and Redis.
+  # Supervisor manages PHP-FPM and Laravel queue workers.
+  # ===========================================================================
+  app:
+    # Build configuration
+    build:
+      context: .                    # Build context = project root
+      dockerfile: docker/php/Dockerfile
+    
+    container_name: laravel_app
+    restart: unless-stopped
+    
+    # Working directory inside container
+    working_dir: /var/www/html
+    
+    # Volume mounts for development
+    # We mount the entire src directory so code changes are reflected immediately
+    # This is DEVELOPMENT ONLY - in production, code is COPYed into image
+    volumes:
+      - ./src:/var/www/html                    # Application code
+      - ./src/storage:/var/www/html/storage    # Storage (logs, cache, uploads)
+      # Named volumes for dependencies (persist between rebuilds)
+      - vendor_data:/var/www/html/vendor       # Composer packages
+      - node_modules_data:/var/www/html/node_modules  # NPM packages
+    
+    # Environment variables
+    # These override values in .env file inside the container
     environment:
-      - APP_ENV=${APP_ENV:-production}
-      - APP_DEBUG=${APP_DEBUG:-false}
+      # Application settings
+      - APP_ENV=local
+      - APP_DEBUG=true
       - APP_KEY=${APP_KEY}
-      - APP_URL=${APP_URL:-http://localhost:8080}
+      - APP_URL=http://localhost:8080
+      
+      # Database settings (using container names as hostnames)
       - DB_CONNECTION=mysql
-      - DB_HOST=mysql
+      - DB_HOST=mysql              # Container name, not localhost!
       - DB_PORT=3306
       - DB_DATABASE=${DB_DATABASE:-laravel}
       - DB_USERNAME=${DB_USERNAME:-laravel}
       - DB_PASSWORD=${DB_PASSWORD:-secret}
-      - REDIS_HOST=redis
+      
+      # Redis settings
+      - REDIS_HOST=redis           # Container name
       - REDIS_PORT=6379
       - CACHE_DRIVER=redis
       - QUEUE_CONNECTION=redis
       - SESSION_DRIVER=redis
+      
+      # PHP settings for development
+      - PHP_OPCACHE_VALIDATE_TIMESTAMPS=1
+      - PHP_OPCACHE_REVALIDATE_FREQ=0
+    
+    # Dependencies: Wait for MySQL and Redis to be ready
     depends_on:
       mysql:
         condition: service_healthy
       redis:
         condition: service_healthy
+    
     networks:
       - laravel-network
+    
+    # Healthcheck: Check if PHP-FPM is responding
+    healthcheck:
+      test: ["CMD", "pgrep", "php-fpm"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 30s
 
-  # MySQL Database
+  # ===========================================================================
+  # MYSQL - Database
+  # ===========================================================================
+  # MySQL stores application data.
+  # We use MySQL 8.0 with native password authentication for compatibility.
+  # ===========================================================================
   mysql:
     image: mysql:8.0
     container_name: laravel_mysql
     restart: unless-stopped
+    
+    # Port mapping: accessible on host at port 3307
+    # (3306 might be used by local MySQL)
     ports:
       - "3307:3306"
+    
     environment:
       - MYSQL_DATABASE=${DB_DATABASE:-laravel}
       - MYSQL_USER=${DB_USERNAME:-laravel}
       - MYSQL_PASSWORD=${DB_PASSWORD:-secret}
       - MYSQL_ROOT_PASSWORD=${DB_ROOT_PASSWORD:-rootsecret}
+    
+    # Persistent storage for database data
     volumes:
       - mysql_data:/var/lib/mysql
+    
+    # Healthcheck: Check if MySQL is ready to accept connections
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASSWORD:-rootsecret}"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 30s
+    
     networks:
       - laravel-network
+    
+    # MySQL configuration for development
+    command: --default-authentication-plugin=mysql_native_password
 
-  # Redis Cache & Queue
+  # ===========================================================================
+  # REDIS - Cache & Queue
+  # ===========================================================================
+  # Redis is used for:
+  # - Caching (improves performance)
+  # - Queue jobs (background processing)
+  # - Session storage (shared between containers)
+  # ===========================================================================
   redis:
     image: redis:7-alpine
     container_name: laravel_redis
     restart: unless-stopped
+    
     ports:
       - "6379:6379"
+    
+    # Persistent storage for Redis data
     volumes:
       - redis_data:/data
+    
+    # Healthcheck: Check if Redis is responding
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
+    
     networks:
       - laravel-network
 
-  # Optional: phpMyAdmin for database management
+  # ===========================================================================
+  # PHPMYADMIN - Database Management UI
+  # ===========================================================================
+  # Web interface for MySQL database management.
+  # DEVELOPMENT ONLY - Remove in production!
+  # ===========================================================================
   phpmyadmin:
     image: phpmyadmin/phpmyadmin:latest
     container_name: laravel_phpmyadmin
     restart: unless-stopped
+    
+    # Access at http://localhost:8081
     ports:
       - "8081:80"
+    
     environment:
-      - PMA_HOST=mysql
+      - PMA_HOST=mysql              # Connect to MySQL container
       - PMA_PORT=3306
       - PMA_USER=root
       - PMA_PASSWORD=${DB_ROOT_PASSWORD:-rootsecret}
+      - UPLOAD_LIMIT=50M           # Max upload size for SQL imports
+    
     depends_on:
-      - mysql
+      mysql:
+        condition: service_healthy
+    
     networks:
       - laravel-network
 
+# -----------------------------------------------------------------------------
+# NETWORKS
+# -----------------------------------------------------------------------------
+# Networks allow containers to communicate with each other.
+# Containers on the same network can use container names as hostnames.
+# -----------------------------------------------------------------------------
 networks:
   laravel-network:
-    driver: bridge
+    driver: bridge                  # Bridge = isolated network for this project
 
+# -----------------------------------------------------------------------------
+# VOLUMES
+# -----------------------------------------------------------------------------
+# Volumes persist data between container restarts and rebuilds.
+# Named volumes are managed by Docker.
+# -----------------------------------------------------------------------------
 volumes:
-  mysql_data:
+  mysql_data:                       # MySQL data (tables, records)
     driver: local
-  redis_data:
+  redis_data:                       # Redis data (cache, queues)
     driver: local
-  vendor_data:
+  vendor_data:                      # Composer packages (faster rebuilds)
     driver: local
-  node_modules_data:
+  node_modules_data:                # NPM packages (faster rebuilds)
     driver: local
+
+# =============================================================================
+# DEVELOPMENT VS PRODUCTION CHANGES:
+# =============================================================================
+#
+# FOR PRODUCTION, YOU WOULD:
+#
+# 1. REMOVE phpMyAdmin service (security risk)
+#
+# 2. REMOVE volume mounts for code:
+#    - Code should be COPYed into image during build
+#    - No live code updates in production
+#
+# 3. CHANGE environment variables:
+#    - APP_ENV=production
+#    - APP_DEBUG=false
+#
+# 4. ADD security options:
+#    security_opt:
+#      - no_new_privileges:true
+#
+# 5. USE secrets instead of environment variables:
+#    secrets:
+#      db_password:
+#        file: ./secrets/db_password.txt
+#
+# 6. ADD resource limits:
+#    deploy:
+#      resources:
+#        limits:
+#          cpus: '1'
+#          memory: 512M
+#
+# 7. REMOVE exposed ports (except for nginx):
+#    - MySQL, Redis should not be accessible from host
+#
+# 8. ADD logging configuration:
+#    logging:
+#      driver: "json-file"
+#      options:
+#        max-size: "10m"
+#        max-file: "3"
+#
+# 9. USE specific image versions (already done)
+#
+# 10. ADD HTTPS/TLS:
+#     - Use Traefik or Nginx Proxy for SSL termination
+#     - Or configure SSL directly in Nginx
+# =============================================================================
